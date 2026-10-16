@@ -10,21 +10,48 @@ ALLOWED_ORIGINS = "*"
 
 socketio = SocketIO(cors_allowed_origins=ALLOWED_ORIGINS)
 
+
 def create_app():
     load_dotenv()
     app = Flask(__name__)
-    
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+
+    database_url = os.getenv('DATABASE_URL')
+
+    if database_url:
+        if database_url.startswith('postgres://'):
+            database_url = database_url.replace(
+                'postgres://',
+                'postgresql+psycopg2://',
+                1
+            )
+        elif database_url.startswith('postgresql://'):
+            database_url = database_url.replace(
+                'postgresql://',
+                'postgresql+psycopg2://',
+                1
+            )
+        elif database_url.startswith('postgresql+psycopg://'):
+            database_url = database_url.replace(
+                'postgresql+psycopg://',
+                'postgresql+psycopg2://',
+                1
+            )
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         "pool_pre_ping": True,
-        "pool_recycle": 300, 
+        "pool_recycle": 300,
     }
 
-    CORS(app, resources={r"/api/*": {"origins": ALLOWED_ORIGINS}}, supports_credentials=True)
-    
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": ALLOWED_ORIGINS}},
+        supports_credentials=True
+    )
+
     db.init_app(app)
     JWTManager(app)
     socketio.init_app(app)
@@ -32,7 +59,7 @@ def create_app():
     from .routes.public import public_bp
     from .routes.admin import admin_bp
     from .routes.auth import auth_bp
-    
+
     app.register_blueprint(public_bp, url_prefix='/api/public')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
